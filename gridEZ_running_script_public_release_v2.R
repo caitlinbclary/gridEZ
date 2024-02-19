@@ -16,7 +16,7 @@ ncores <- 7
 par_type <- "PSOCK" 
 
 # Read in gridEZ function
-source("gridEZ_fn_public_release_v2.R")
+source("gridEZ_fn_public_release_v3.R")
 
 # Set input files
 country_population_raster <- raster("~/gridEZ/X/X_pop.tif")
