@@ -7,7 +7,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
                    EZ_by_pop = FALSE, target_pop_per_EZ = 500, max_cells_per_EZ = 900,
                    output_path, run_ID = "_run1"){
 
-  #browser()
   # Initial raster and specifications checks ----
 
   if (file.exists(paste(output_path, "/EZ_raster_master", run_ID, ".tif", sep=""))){
@@ -38,11 +37,12 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
       method = "ngb")
   }
 
-  new_extent <- extent(c(max(extent(population_raster)[1], extent(settlement_raster)[1], extent(strata_raster)[1]),
-                         min(extent(population_raster)[2], extent(settlement_raster)[2], extent(strata_raster)[2]),
-                         max(extent(population_raster)[3], extent(settlement_raster)[3], extent(strata_raster)[3]),
-                         min(extent(population_raster)[4], extent(settlement_raster)[4], extent(strata_raster)[4])))
-
+  new_extent <- extent(
+    c(max(extent(population_raster)[1], extent(settlement_raster)[1], extent(strata_raster)[1]),
+      min(extent(population_raster)[2], extent(settlement_raster)[2], extent(strata_raster)[2]),
+      max(extent(population_raster)[3], extent(settlement_raster)[3], extent(strata_raster)[3]),
+      min(extent(population_raster)[4], extent(settlement_raster)[4], extent(strata_raster)[4])))
+  
   population_raster <- crop(population_raster, new_extent)
   settlement_raster <- crop(settlement_raster, new_extent)
   strata_raster <- crop(strata_raster, new_extent)
@@ -92,25 +92,35 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
       stop("Both EZ_by_hh & EZ_by_pop can't be TRUE. Set just one to be TRUE")
     }
     if (EZ_by_hh == TRUE){
-      if (class(target_hh_per_EZ) == "numeric"){
-        ### add check in here for pop_per_hh being numeric too
-        target_pop_per_EZ <- target_hh_per_EZ * pop_per_hh
-      } else {
-        if (!class(target_hh_per_EZ) == "data.frame"){
+      # If target_hh_per_EZ is NOT a data frame...
+      if (!any(class(target_hh_per_EZ) == "data.frame")){
+        # Check if class is numeric if not a data frame
+        if (class(target_hh_per_EZ) == "numeric"){
+          ### add check in here for pop_per_hh being numeric too
+          target_pop_per_EZ <- target_hh_per_EZ * pop_per_hh
+        } else {
+          # If not numeric or a data frame, error
           stop(paste("target_hh_per_EZ has class", class(target_hh_per_EZ), "; target_hh_per_EZ needs to be a single number or a data.frame object, see ?class"))
-        }
+          }
+        } else {
+
+          # If target_hh_per_EZ *IS* a data frame...
+
         if (!ncol(target_hh_per_EZ) == 4){
           stop(paste("target_hh_per_EZ has", ncol(target_hh_per_EZ), " columns; target_hh_per_EZ should have 4 columns - 'strata_ID_number', 'settlement_type_ID_number', 'target_number_hh_per_EZ', 'pop_number_per_hh'"))
         }
+
         if (FALSE %in% (c("strata_ID_number", "settlement_type_ID_number", "target_number_hh_per_EZ", "pop_number_per_hh") %in% names(target_hh_per_EZ))){
           stop("target_hh_per_EZ column names need to be 'strata_ID_number', 'settlement_type_ID_number', 'target_number_hh_per_EZ', 'pop_number_per_hh', see names(target_hh_per_EZ) to check")
         }
         if (exclude_unsettled == TRUE){     # leave here rather than further down ifs in case user puts NAs for the unsettled entries
           target_hh_per_EZ <- target_hh_per_EZ[-(target_hh_per_EZ$settlement_type_ID_number == unsettled_ID),]
         }
+          
         if (TRUE %in% is.na(unlist(target_hh_per_EZ))){
           stop("target_hh_per_EZ contains NAs, all entries should be numeric with 'strata_ID_number' and 'settlement_type_ID_number' entries corresponding to the values in strata_raster and settlement_raster, respectively")
         }
+          
         if (!is.numeric(unlist(target_hh_per_EZ))){
           stop("target_hh_per_EZ contains non-numerics, see is.numeric(unlist(target_hh_per_EZ)). All entries should be numeric with 'strata_ID_number' and 'settlement_type_ID_number' entries corresponding to the values in strata_raster and settlement_raster, respectively")
         }
@@ -122,7 +132,12 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
         }
         # because not all sett types may be in a stratum, user may not specify (number of strata x number of settlement) rows, if there are missing combos this is picked up later in code
         target_pop_number_per_EZ <- target_hh_per_EZ$target_number_hh_per_EZ * target_hh_per_EZ$pop_number_per_hh
-        target_pop_per_EZ <- as.data.frame(cbind(target_hh_per_EZ$strata_ID_number,target_hh_per_EZ$settlement_type_ID_number, target_pop_number_per_EZ))
+        target_pop_per_EZ <- as.data.frame(
+          cbind(target_hh_per_EZ$strata_ID_number,
+                target_hh_per_EZ$settlement_type_ID_number,
+                target_pop_number_per_EZ))
+
+        names(target_pop_per_EZ) <- c("strata_ID_number", "settlement_type_ID_number", "target_pop_number_per_EZ")
       }
       print("EZs will be created based on user's specified number of households per EZ")
     }
@@ -161,6 +176,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     }
   }
 
+
   # Create temporary folder ----
 
   print(paste("creating", " /temp_folder", run_ID, sep=""))
@@ -181,7 +197,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
   rm(population_raster); rm(settlement_raster); rm(strata_raster)
 
   # Cut up study region in preparation for parallel processing ----
- # browser()
   sett_vals <- sort(unique(sett_mat[!is.na(sett_mat)]))
   strat_vals <- sort(unique(strata_mat[!is.na(strata_mat)]))
   strat_sett_df <- cbind(
@@ -202,6 +217,7 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     i <- strat_sett_df[ssID, 1] #stratum ID
     j <- strat_sett_df[ssID, 2] #sett_type ID
     if (is.data.frame(target_pop_per_EZ) == TRUE){
+
       if (!length(target_pop_per_EZ$target_pop_number_per_EZ[target_pop_per_EZ$strata_ID_number == i & target_pop_per_EZ$settlement_type_ID_number == j] == 1)){
         stop(paste("no row in user specifications for stratum", i, "and settlement type", j, "in either target_hh_per_EZ or target_pop_per_EZ data frame"))
       }
@@ -212,13 +228,13 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
     strat_sett_mat[strata_mat[] == i & sett_mat[] == j] <- 1
     if (length(sort(unique(strat_sett_mat[!is.na(strat_sett_mat)]))) == 0) next   # if no cells of j sett type are in i state
     cell_IDs <- which(strat_sett_mat[] == 1, arr.ind = TRUE)
+    
     min_strat_sett_row <- min(cell_IDs[,1])
     max_strat_sett_row <- max(cell_IDs[,1])
     min_strat_sett_col <- min(cell_IDs[,2])
     max_strat_sett_col <- max(cell_IDs[,2])
     sub_strat_sett_mat <- strat_sett_mat[min_strat_sett_row:max_strat_sett_row, min_strat_sett_col:max_strat_sett_col]
     sub_strat_sett_pop_mat <- population_mat[min_strat_sett_row:max_strat_sett_row, min_strat_sett_col:max_strat_sett_col]
-    # browser()
 
     # Added any() statements here 20230907 (CBC)
     if (!any(class(sub_strat_sett_mat) == "matrix")){sub_strat_sett_mat <- matrix(sub_strat_sett_mat, nrow=(max_strat_sett_row - min_strat_sett_row + 1))}
@@ -361,7 +377,6 @@ gridEZ <- function(population_raster, settlement_raster, strata_raster,
 
   cl <- makeCluster(ncores, par_type)
   print("starting cluster")
-  # browser()
   clusterExport(cl, split(ls("package:raster"),1:length(ls("package:raster"))))
   invisible(parLapply(cl, clump_info, EZ_gen_fn, max_cells_per_EZ=max_cells_per_EZ, output_path = output_path, run_ID = run_ID))
   stopCluster(cl)
