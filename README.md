@@ -6,10 +6,10 @@ EZs are generated from three input rasters that cover the study region. These ar
 
 ### Instructions
 
-1. Download 'gridEZ_running_script_public_release_v2.R' and 'gridEZ_fn_public_release_v2.R'
+1. Download 'gridEZ_running_script_public_release_v2.R' and 'gridEZ_fn_public_release_v3.R'
 2. Open 'gridEZ_running_script_public_release_v2.R' in R 
 3. Edit ncores and par_type to suit your computing system's parallel processing 
-4. Edit the line of code that sources the gridEZ function to point to the file location of gridEZ_fn_public_release_v2.R on your computer 
+4. Edit the line of code that sources the gridEZ function to point to the file location of gridEZ_fn_public_release_v3.R on your computer 
 5. Load in the population, strata, and settlement rasters for your project by editing the file paths in the 'set input files' section
 6. Edit the gridEZ() specifications for generating EZs for your project under the 'run grid EZ code' section
 7. Run the entire gridEZ_running_script_public_release_v2.R script
